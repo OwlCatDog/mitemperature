@@ -1,4 +1,8 @@
-# LYWSD03MMC Passive -> MySQL
+# LYWSD03MMC Passive
+
+(p.s. 90%的代码都是AI生成的)
+
+原项目 https://github.com/JsBergbau/MiTemperature2
 
 这是一个基于 `MiTemperature2` 被动扫描逻辑精简出的独立项目：
 
