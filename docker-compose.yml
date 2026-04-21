@@ -5,7 +5,7 @@ services:
     network_mode: host
     restart: unless-stopped
     env_file:
-      - .env.example
+      - .env
     cap_add:
       - NET_RAW
       - NET_ADMIN
