@@ -12,6 +12,8 @@
 - 配置全部来自环境变量
 - 提供 Docker 化运行方式
 
+镜像: sydneymrcat/mitemperature
+
 ## 说明
 
 - 解析格式：`ATC1441` 与 `Custom`（明文）
@@ -83,6 +85,5 @@ docker compose logs -f
 
 ## 运行注意
 
-- BLE 被动扫描通常需要 `--privileged`，项目在 compose 中已设置。
 - 该容器使用 `network_mode: host`，因此访问 MySQL 时请按你的实际网络拓扑配置 `MYSQL_HOST`。
 - 若你暂时没有 MySQL，可将 `SKIP_MYSQL=true` 先验证扫描与解析链路。
