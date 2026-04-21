@@ -1,0 +1,13 @@
+services:
+  lywsd03mmc-passive:
+    build: .
+    container_name: lywsd03mmc-passive
+    network_mode: host
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    security_opt:
+      - seccomp=unconfined
