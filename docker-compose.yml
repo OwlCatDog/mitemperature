@@ -1,7 +1,7 @@
 services:
   lywsd03mmc-passive:
-    build: .
-    container_name: lywsd03mmc-passive
+    image: sydneymrcat/mitemperature:latest
+    container_name: mitemperature
     network_mode: host
     restart: unless-stopped
     env_file:
