@@ -10,8 +10,11 @@ from datetime import datetime, timedelta
 from typing import Optional, Protocol
 
 import bluetooth._bluetooth as bluez
-import mysql.connector
-from mysql.connector import Error as MySQLError
+from sqlalchemy import Index, create_engine
+from sqlalchemy.dialects.mysql import BIGINT, DECIMAL, SMALLINT, TINYINT, TIMESTAMP, VARCHAR
+from sqlalchemy.engine import URL
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from .bluetooth_utils import (
     disable_le_scan,
@@ -22,6 +25,7 @@ from .bluetooth_utils import (
 )
 
 UTC_PLUS_8 = timedelta(hours=8)
+MYSQL_TABLE_NAME = "lywsd03mmc_readings"
 
 
 def env_bool(name: str, default: bool) -> bool:
@@ -60,7 +64,6 @@ class Settings:
     mysql_user: str
     mysql_password: str
     mysql_database: str
-    mysql_table: str
     mysql_create_table: bool
     skip_mysql: bool
 
@@ -84,10 +87,6 @@ class Settings:
             for item in raw_macs.split(","):
                 allowed_macs.add(normalize_mac(item))
 
-        table_name = os.getenv("MYSQL_TABLE", "lywsd03mmc_readings").strip()
-        if not re.fullmatch(r"[A-Za-z0-9_]+", table_name):
-            raise ValueError("MYSQL_TABLE can only contain letters, numbers and underscore")
-
         return Settings(
             ble_interface=env_int("BLE_INTERFACE", 0),
             watchdog_seconds=env_int("WATCHDOG_SECONDS", 0),
@@ -98,7 +97,6 @@ class Settings:
             mysql_user=required["MYSQL_USER"] or "",
             mysql_password=required["MYSQL_PASSWORD"] or "",
             mysql_database=required["MYSQL_DATABASE"] or "",
-            mysql_table=table_name,
             mysql_create_table=env_bool("MYSQL_CREATE_TABLE", True),
             skip_mysql=skip_mysql,
         )
@@ -115,6 +113,27 @@ class Measurement:
     timestamp: datetime
 
 
+class Base(DeclarativeBase):
+    pass
+
+
+class Reading(Base):
+    __tablename__ = MYSQL_TABLE_NAME
+    __table_args__ = (
+        Index("idx_mac_timestamp", "mac", "timestamp"),
+        {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"},
+    )
+
+    id: Mapped[int] = mapped_column(BIGINT(unsigned=True), primary_key=True, autoincrement=True)
+    mac: Mapped[str] = mapped_column(VARCHAR(17), nullable=False)
+    temperature: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
+    humidity: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
+    voltage: Mapped[float] = mapped_column(DECIMAL(5, 3), nullable=False)
+    battery: Mapped[int] = mapped_column(TINYINT(unsigned=True), nullable=False)
+    rssi: Mapped[int] = mapped_column(SMALLINT, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
+
+
 class Writer(Protocol):
     def insert(self, measurement: Measurement):
         ...
@@ -126,28 +145,28 @@ class Writer(Protocol):
 class MySQLWriter:
     def __init__(self, settings: Settings):
         self.settings = settings
-        self.conn = None
-        self.cursor = None
-        self.insert_sql = (
-            f"INSERT INTO `{settings.mysql_table}` "
-            "(`mac`, `temperature`, `humidity`, `voltage`, `battery`, `rssi`, `timestamp`) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s)"
-        )
+        self.engine = None
+        self.session_factory = None
         self._connect()
         if settings.mysql_create_table:
             self.ensure_table()
 
     def _connect(self):
         self.close()
-        self.conn = mysql.connector.connect(
-            host=self.settings.mysql_host,
-            port=self.settings.mysql_port,
-            user=self.settings.mysql_user,
-            password=self.settings.mysql_password,
-            database=self.settings.mysql_database,
-            autocommit=True,
+        self.engine = create_engine(
+            URL.create(
+                "mysql+mysqlconnector",
+                username=self.settings.mysql_user,
+                password=self.settings.mysql_password,
+                host=self.settings.mysql_host,
+                port=self.settings.mysql_port,
+                database=self.settings.mysql_database,
+            ),
+            pool_pre_ping=True,
         )
-        self.cursor = self.conn.cursor()
+        self.session_factory = sessionmaker(bind=self.engine, expire_on_commit=False)
+        with self.engine.connect():
+            pass
         logging.info(
             "Connected to MySQL %s:%s/%s",
             self.settings.mysql_host,
@@ -156,34 +175,11 @@ class MySQLWriter:
         )
 
     def ensure_table(self):
-        create_sql = f"""
-        CREATE TABLE IF NOT EXISTS `{self.settings.mysql_table}` (
-          `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-          `mac` VARCHAR(17) NOT NULL,
-          `temperature` DECIMAL(5,2) NOT NULL,
-          `humidity` DECIMAL(5,2) NOT NULL,
-          `voltage` DECIMAL(5,3) NOT NULL,
-          `battery` TINYINT UNSIGNED NOT NULL,
-          `rssi` SMALLINT NOT NULL,
-          `timestamp` TIMESTAMP NOT NULL,
-          PRIMARY KEY (`id`),
-          INDEX `idx_mac_timestamp` (`mac`, `timestamp`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        """
-        self.cursor.execute(create_sql)
-        logging.info("Ensured table exists: %s", self.settings.mysql_table)
+        Base.metadata.create_all(self.engine, tables=[Reading.__table__])
+        logging.info("Ensured table exists: %s", MYSQL_TABLE_NAME)
 
     def insert(self, measurement: Measurement):
-        values = (
-            measurement.mac,
-            round(measurement.temperature, 2),
-            round(measurement.humidity, 2),
-            round(measurement.voltage, 3),
-            int(measurement.battery),
-            int(measurement.rssi),
-            measurement.timestamp,
-        )
-        self._execute_with_retry(self.insert_sql, values)
+        self._insert_with_retry(measurement)
         logging.info(
             "Inserted %s t=%.2f h=%.2f v=%.3f b=%s rssi=%s",
             measurement.mac,
@@ -194,27 +190,43 @@ class MySQLWriter:
             measurement.rssi,
         )
 
-    def _execute_with_retry(self, sql: str, values: tuple):
+    def _insert_with_retry(self, measurement: Measurement):
         try:
-            self.cursor.execute(sql, values)
-        except MySQLError as exc:
+            self._insert_once(measurement)
+        except SQLAlchemyError as exc:
             logging.warning("MySQL write failed (%s), retrying once...", exc)
             self._connect()
-            self.cursor.execute(sql, values)
+            self._insert_once(measurement)
+
+    def _insert_once(self, measurement: Measurement):
+        session = self.session_factory()
+        try:
+            session.add(
+                Reading(
+                    mac=measurement.mac,
+                    temperature=round(measurement.temperature, 2),
+                    humidity=round(measurement.humidity, 2),
+                    voltage=round(measurement.voltage, 3),
+                    battery=int(measurement.battery),
+                    rssi=int(measurement.rssi),
+                    timestamp=measurement.timestamp,
+                )
+            )
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     def close(self):
-        if self.cursor is not None:
+        self.session_factory = None
+        if self.engine is not None:
             try:
-                self.cursor.close()
+                self.engine.dispose()
             except Exception:
                 pass
-            self.cursor = None
-        if self.conn is not None:
-            try:
-                self.conn.close()
-            except Exception:
-                pass
-            self.conn = None
+            self.engine = None
 
 
 class NoopWriter:
