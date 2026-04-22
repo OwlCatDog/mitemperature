@@ -5,6 +5,8 @@ services:
     container_name: mitemperature
     network_mode: host
     restart: unless-stopped
+    ports:
+      - "8745:8745"
     env_file:
       - .env
     cap_add:

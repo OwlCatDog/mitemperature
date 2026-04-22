@@ -44,6 +44,7 @@
 - `tvoc`
 - `temperature`
 - `humidity`
+- `timestamp`
 
 参考 SQL 在 [sql/schema.sql](/home/sydneyowl/Desktop/mitemperature/sql/schema.sql)。
 

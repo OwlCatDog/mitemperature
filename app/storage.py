@@ -49,6 +49,7 @@ class DaikinReading(Base):
     tvoc: Mapped[int] = mapped_column(INTEGER(unsigned=True), nullable=False)
     temperature: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
     humidity: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
 
 
 class Storage(Protocol):
@@ -131,10 +132,11 @@ class MySQLWriter:
                 tvoc=int(measurement.tvoc),
                 temperature=round(measurement.temperature, 2),
                 humidity=round(measurement.humidity, 2),
+                timestamp=measurement.timestamp,
             )
         )
         logging.info(
-            "Inserted daikin co2=%s eco2=%s pm1=%.2f pm25=%.2f pm10=%.2f tvoc=%s temp=%.2f humi=%.2f",
+            "Inserted daikin co2=%s eco2=%s pm1=%.2f pm25=%.2f pm10=%.2f tvoc=%s temp=%.2f humi=%.2f ts=%s",
             measurement.co2,
             measurement.eco2,
             measurement.pm1,
@@ -143,6 +145,7 @@ class MySQLWriter:
             measurement.tvoc,
             measurement.temperature,
             measurement.humidity,
+            measurement.timestamp.isoformat(sep=" "),
         )
 
     def _insert_with_retry(self, build_record: Callable[[], Base]):
@@ -189,7 +192,7 @@ class NoopStorage:
 
     def insert_daikin(self, measurement: DaikinMeasurement):
         logging.info(
-            "SKIP_MYSQL daikin co2=%s eco2=%s pm1=%.2f pm25=%.2f pm10=%.2f tvoc=%s temp=%.2f humi=%.2f",
+            "SKIP_MYSQL daikin co2=%s eco2=%s pm1=%.2f pm25=%.2f pm10=%.2f tvoc=%s temp=%.2f humi=%.2f ts=%s",
             measurement.co2,
             measurement.eco2,
             measurement.pm1,
@@ -198,6 +201,7 @@ class NoopStorage:
             measurement.tvoc,
             measurement.temperature,
             measurement.humidity,
+            measurement.timestamp.isoformat(sep=" "),
         )
 
     def close(self):

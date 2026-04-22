@@ -21,5 +21,6 @@ CREATE TABLE IF NOT EXISTS `daikin_readings` (
   `tvoc` INT UNSIGNED NOT NULL,
   `temperature` DECIMAL(5,2) NOT NULL,
   `humidity` DECIMAL(5,2) NOT NULL,
+  `timestamp` TIMESTAMP NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

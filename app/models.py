@@ -29,3 +29,4 @@ class DaikinMeasurement:
     tvoc: int
     temperature: float
     humidity: float
+    timestamp: datetime

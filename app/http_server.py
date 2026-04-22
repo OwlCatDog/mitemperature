@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
 from .config import Settings
-from .models import DaikinMeasurement
+from .models import DaikinMeasurement, now_utc_plus_8
 from .storage import Storage
 
 
@@ -26,6 +26,7 @@ def parse_daikin_measurement(query: dict[str, list[str]]) -> DaikinMeasurement:
         tvoc=int(_first_value(query, "tvoc")),
         temperature=float(_first_value(query, "temp", "temperature")),
         humidity=float(_first_value(query, "humi", "humidity")),
+        timestamp=now_utc_plus_8(),
     )
 
 
