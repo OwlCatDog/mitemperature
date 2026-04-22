@@ -45,8 +45,9 @@
 - `SENSOR_MACS`：可选，逗号分隔 MAC 白名单；为空则接收所有可解析设备
 - `SKIP_MYSQL`：测试开关，`true` 时不连接 MySQL、不写库，只打印解析结果
 - `MYSQL_HOST` / `MYSQL_PORT` / `MYSQL_USER` / `MYSQL_PASSWORD` / `MYSQL_DATABASE`
-- `MYSQL_TABLE`：表名，默认 `lywsd03mmc_readings`
 - `MYSQL_CREATE_TABLE`：是否自动建表，默认 `true`
+
+表名固定为 `lywsd03mmc_readings`。
 
 ## 本地运行
 
