@@ -49,7 +49,7 @@
 
 ## 环境变量
 
-可参考 [.env.example](/home/sydneyowl/Desktop/MiTemperature2/lywsd03mmc-mysql-passive/.env.example)：
+可参考 [.env.example](/home/sydneyowl/Desktop/mitemperature/.env.example)：
 
 - `BLE_SCANNER_ENABLED`：是否启用蓝牙扫描，默认 `true`
 - `BLE_INTERFACE`：蓝牙接口号，默认 `0`（即 `hci0`）
