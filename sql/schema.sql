@@ -11,3 +11,15 @@ CREATE TABLE IF NOT EXISTS `lywsd03mmc_readings` (
   INDEX `idx_mac_timestamp` (`mac`, `timestamp`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `daikin_readings` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `co2` INT UNSIGNED NOT NULL,
+  `eco2` INT UNSIGNED NOT NULL,
+  `pm1` DECIMAL(8,2) NOT NULL,
+  `pm25` DECIMAL(8,2) NOT NULL,
+  `pm10` DECIMAL(8,2) NOT NULL,
+  `tvoc` INT UNSIGNED NOT NULL,
+  `temperature` DECIMAL(5,2) NOT NULL,
+  `humidity` DECIMAL(5,2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

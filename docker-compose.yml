@@ -1,5 +1,6 @@
 services:
   lywsd03mmc-passive:
+    build: .
     image: sydneymrcat/mitemperature:latest
     container_name: mitemperature
     network_mode: host

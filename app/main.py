@@ -2,16 +2,18 @@
 
 import logging
 import signal
+import threading
 
 from .config import Settings
+from .http_server import HttpReportServer
 from .scanner import PassiveScanner
-from .storage import MySQLWriter, NoopWriter
+from .storage import MySQLWriter, NoopStorage
 
 
-def build_writer(settings: Settings):
+def build_storage(settings: Settings):
     if settings.skip_mysql:
         logging.warning("SKIP_MYSQL enabled. Data will not be written to database.")
-        return NoopWriter()
+        return NoopStorage()
     return MySQLWriter(settings)
 
 
@@ -27,22 +29,40 @@ def main():
         level=getattr(logging, settings.log_level, logging.INFO),
         format="%(asctime)s %(levelname)s %(message)s",
     )
-    writer = build_writer(settings)
-    scanner = PassiveScanner(settings, writer)
+    storage = build_storage(settings)
+    scanner = PassiveScanner(settings, storage) if settings.ble_scanner_enabled else None
+    http_server = HttpReportServer(settings, storage) if settings.http_server_enabled else None
+    stop_event = threading.Event()
+
+    def shutdown():
+        if stop_event.is_set():
+            return
+        stop_event.set()
+        if http_server is not None:
+            http_server.stop()
+        if scanner is not None:
+            scanner.stop()
+        storage.close()
 
     def handle_signal(sig, _frame):
         logging.info("Signal received: %s", sig)
-        scanner.stop()
+        shutdown()
 
     signal.signal(signal.SIGTERM, handle_signal)
     signal.signal(signal.SIGINT, handle_signal)
 
     try:
-        scanner.start()
+        if http_server is not None:
+            http_server.start()
+        if scanner is not None:
+            scanner.start()
+        else:
+            while not stop_event.wait(1):
+                pass
     except KeyboardInterrupt:
         pass
     finally:
-        scanner.stop()
+        shutdown()
 
 
 if __name__ == "__main__":

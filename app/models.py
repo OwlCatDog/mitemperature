@@ -17,3 +17,15 @@ class Measurement:
     battery: int
     rssi: int
     timestamp: datetime
+
+
+@dataclass
+class DaikinMeasurement:
+    co2: int
+    eco2: int
+    pm1: float
+    pm25: float
+    pm10: float
+    tvoc: int
+    temperature: float
+    humidity: float

@@ -14,13 +14,13 @@ from .bluetooth_utils import (
 )
 from .config import Settings, normalize_mac
 from .models import Measurement, now_utc_plus_8
-from .storage import Writer
+from .storage import Storage
 
 
 class PassiveScanner:
-    def __init__(self, settings: Settings, writer: Writer):
+    def __init__(self, settings: Settings, storage: Storage):
         self.settings = settings
-        self.writer = writer
+        self.storage = storage
         self.sock = None
         self.stop_event = threading.Event()
         self.last_packet_time = time.monotonic()
@@ -54,7 +54,7 @@ class PassiveScanner:
             except Exception:
                 pass
             self.sock = None
-        self.writer.close()
+        self.storage.close()
         logging.info("Scanner stopped")
 
     def _watchdog(self):
@@ -89,7 +89,7 @@ class PassiveScanner:
         measurement = self._decode_atc_or_custom(mac, adv_type, data_str, rssi)
         if measurement is None:
             return
-        self.writer.insert(measurement)
+        self.storage.insert_ble(measurement)
 
     def _decode_atc_or_custom(
         self, mac: str, adv_type: int, data_str: str, rssi: int
