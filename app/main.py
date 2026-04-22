@@ -21,13 +21,18 @@ def main():
     try:
         settings = Settings.from_env()
     except ValueError as exc:
-        logging.basicConfig(level=logging.ERROR, format="%(asctime)s %(levelname)s %(message)s")
+        logging.basicConfig(
+            level=logging.ERROR,
+            format="%(asctime)s %(levelname)s %(message)s",
+            force=True,
+        )
         logging.error("%s", exc)
         raise SystemExit(2)
 
     logging.basicConfig(
         level=getattr(logging, settings.log_level, logging.INFO),
         format="%(asctime)s %(levelname)s %(message)s",
+        force=True,
     )
     storage = build_storage(settings)
     scanner = PassiveScanner(settings, storage) if settings.ble_scanner_enabled else None
