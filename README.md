@@ -59,6 +59,8 @@
 - `HTTP_SERVER_HOST`：HTTP 监听地址，默认 `0.0.0.0`
 - `HTTP_SERVER_PORT`：HTTP 监听端口，默认 `8080`
 - `HTTP_REPORT_PATH`：HTTP 上报路径，默认 `/daikin`
+- `SENSOR_FORWARD_ENABLED`：是否将收到的传感器数据转发到外部端点，默认 `false`
+- `SENSOR_FORWARD_URL`：外部端点地址（如 `http://127.0.0.1:5000/sensors`）
 - `LOG_LEVEL`：日志级别，默认 `INFO`
 - `SENSOR_MACS`：可选，逗号分隔 MAC 白名单；为空则接收所有可解析设备
 - `SKIP_MYSQL`：测试开关，`true` 时不连接 MySQL、不写库，只打印解析结果
@@ -74,6 +76,15 @@ GET /daikin?co2=500&eco2=520&pm1=1.2&pm25=2.3&pm10=3.4&tvoc=12&temp=25.6&humi=48
 ```
 
 其中 HTTP 参数使用 `temp` / `humi`，数据库字段写入 `temperature` / `humidity`。
+
+若启用 `SENSOR_FORWARD_ENABLED=true`，收到数据时会向 `SENSOR_FORWARD_URL` 发送 GET 请求，参数为：
+
+```text
+name=<mac>&temp=<temperature>&humi=<humidity>&bat=<battery>&volt=<voltage>&rssi=<rssi>
+```
+
+- 小米传感器：`name` 使用传感器自身 MAC
+- Daikin 上报：`name` 固定为 `AA:BB:CC:DD:EE:FF`，且 `bat/volt/rssi` 固定为 `0`
 
 ## 本地运行
 

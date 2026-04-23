@@ -5,6 +5,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from .config import Settings
 from .models import DaikinMeasurement, now_utc_plus_8
+from .reporter import SensorForwarder
 from .storage import Storage
 
 
@@ -31,9 +32,10 @@ def parse_daikin_measurement(query: dict[str, list[str]]) -> DaikinMeasurement:
 
 
 class HttpReportServer:
-    def __init__(self, settings: Settings, storage: Storage):
+    def __init__(self, settings: Settings, storage: Storage, forwarder: SensorForwarder | None = None):
         self.settings = settings
         self.storage = storage
+        self.forwarder = forwarder
         self.server = None
         self.thread = None
 
@@ -66,6 +68,7 @@ class HttpReportServer:
 
     def _build_handler(self):
         storage = self.storage
+        forwarder = self.forwarder
         report_path = self.settings.http_report_path
 
         class ReportHandler(BaseHTTPRequestHandler):
@@ -81,6 +84,8 @@ class HttpReportServer:
                 try:
                     measurement = parse_daikin_measurement(parse_qs(parsed.query, keep_blank_values=True))
                     storage.insert_daikin(measurement)
+                    if forwarder is not None:
+                        forwarder.report_daikin(measurement)
                 except ValueError as exc:
                     self._send_text(400, f"{exc}\n")
                     return

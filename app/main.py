@@ -6,6 +6,7 @@ import threading
 
 from .config import Settings
 from .http_server import HttpReportServer
+from .reporter import SensorForwarder
 from .scanner import PassiveScanner
 from .storage import MySQLWriter, NoopStorage
 
@@ -35,8 +36,11 @@ def main():
         force=True,
     )
     storage = build_storage(settings)
-    scanner = PassiveScanner(settings, storage) if settings.ble_scanner_enabled else None
-    http_server = HttpReportServer(settings, storage) if settings.http_server_enabled else None
+    forwarder = SensorForwarder(settings)
+    scanner = PassiveScanner(settings, storage, forwarder) if settings.ble_scanner_enabled else None
+    http_server = (
+        HttpReportServer(settings, storage, forwarder) if settings.http_server_enabled else None
+    )
     stop_event = threading.Event()
 
     def shutdown():
@@ -47,6 +51,7 @@ def main():
             http_server.stop()
         if scanner is not None:
             scanner.stop()
+        forwarder.close()
         storage.close()
 
     def handle_signal(sig, _frame):

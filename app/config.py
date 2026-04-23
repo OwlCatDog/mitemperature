@@ -42,6 +42,8 @@ class Settings:
     http_server_host: str
     http_server_port: int
     http_report_path: str
+    sensor_forward_enabled: bool
+    sensor_forward_url: str
 
     @staticmethod
     def from_env() -> "Settings":
@@ -69,6 +71,10 @@ class Settings:
         http_report_path = os.getenv("HTTP_REPORT_PATH", "/daikin").strip() or "/daikin"
         if not http_report_path.startswith("/"):
             http_report_path = f"/{http_report_path}"
+        sensor_forward_enabled = env_bool("SENSOR_FORWARD_ENABLED", False)
+        sensor_forward_url = os.getenv("SENSOR_FORWARD_URL", "").strip()
+        if sensor_forward_enabled and not sensor_forward_url:
+            raise ValueError("SENSOR_FORWARD_URL is required when SENSOR_FORWARD_ENABLED=true")
 
         return Settings(
             ble_scanner_enabled=ble_scanner_enabled,
@@ -87,4 +93,6 @@ class Settings:
             http_server_host=os.getenv("HTTP_SERVER_HOST", "0.0.0.0").strip() or "0.0.0.0",
             http_server_port=env_int("HTTP_SERVER_PORT", 8080),
             http_report_path=http_report_path,
+            sensor_forward_enabled=sensor_forward_enabled,
+            sensor_forward_url=sensor_forward_url,
         )

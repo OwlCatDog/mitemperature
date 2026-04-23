@@ -14,13 +14,15 @@ from .bluetooth_utils import (
 )
 from .config import Settings, normalize_mac
 from .models import Measurement, now_utc_plus_8
+from .reporter import SensorForwarder
 from .storage import Storage
 
 
 class PassiveScanner:
-    def __init__(self, settings: Settings, storage: Storage):
+    def __init__(self, settings: Settings, storage: Storage, forwarder: SensorForwarder | None = None):
         self.settings = settings
         self.storage = storage
+        self.forwarder = forwarder
         self.sock = None
         self.stop_event = threading.Event()
         self.last_packet_time = time.monotonic()
@@ -90,6 +92,8 @@ class PassiveScanner:
         if measurement is None:
             return
         self.storage.insert_ble(measurement)
+        if self.forwarder is not None:
+            self.forwarder.report_ble(measurement)
 
     def _decode_atc_or_custom(
         self, mac: str, adv_type: int, data_str: str, rssi: int
