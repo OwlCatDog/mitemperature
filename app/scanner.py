@@ -19,7 +19,9 @@ from .storage import Storage
 
 
 class PassiveScanner:
-    def __init__(self, settings: Settings, storage: Storage, forwarder: SensorForwarder | None = None):
+    def __init__(
+        self, settings: Settings, storage: Storage, forwarder: Optional[SensorForwarder] = None
+    ):
         self.settings = settings
         self.storage = storage
         self.forwarder = forwarder

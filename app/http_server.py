@@ -1,6 +1,7 @@
 import logging
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Optional
 from urllib.parse import parse_qs, urlsplit
 
 from .config import Settings
@@ -32,7 +33,9 @@ def parse_daikin_measurement(query: dict[str, list[str]]) -> DaikinMeasurement:
 
 
 class HttpReportServer:
-    def __init__(self, settings: Settings, storage: Storage, forwarder: SensorForwarder | None = None):
+    def __init__(
+        self, settings: Settings, storage: Storage, forwarder: Optional[SensorForwarder] = None
+    ):
         self.settings = settings
         self.storage = storage
         self.forwarder = forwarder
